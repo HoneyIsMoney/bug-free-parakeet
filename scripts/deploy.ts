@@ -1,172 +1,52 @@
 import '@nomiclabs/hardhat-waffle';
 import '@nomiclabs/hardhat-ethers';
-import { run, ethers, config, tenderly } from 'hardhat';
-import * as fs from 'fs';
-import * as chalk from 'chalk';
-import * as hre from 'hardhat';
-import { ContractJson } from 'helpers/types/hardhat-type-extensions';
-import { utils } from 'ethers';
-import { ParamType } from 'ethers/lib/utils';
+import { ethers } from 'hardhat';
 
-/*
+import { rugpull } from "./testHelpers";
+import { EVMcrispr } from '@commonsswarm/evmcrispr';
+const log = console.log
+const agentWhale = "0xA377585abED3E943e58174b55558A2482894ce20";
+const agve = "0x3a97704a1b25F08aa230ae53B352e2e72ef52843";
+const oldDAO = "0xd3b4048623028cD1E09Ab5192eB2612E9ce339d2"
+const oldVoting = '0x5dcdf85f1b00ae648233d77e4a9879dad3a89563'
+const hornetVesting = '0x2abeb846160b92ecc9b4773e2d95df4766a52eb9'
 
- _______ _________ _______  _______
-(  ____ \\__   __/(  ___  )(  ____ )
-| (    \/   ) (   | (   ) || (    )|
-| (_____    | |   | |   | || (____)|
-(_____  )   | |   | |   | ||  _____)
-      ) |   | |   | |   | || (
-/\____) |   | |   | (___) || )
-\_______)   )_(   (_______)|/
-
-This deploy script is no longer in use, but is left for reference purposes!
-
-scaffold-eth now uses hardhat-deploy to manage deployments, see the /deploy folder
-And learn more here: https://www.npmjs.com/package/hardhat-deploy
-
-*/
 const main = async () => {
-  console.log('\n\n 📡 Deploying...\n');
 
-  const yourContract = await deploy('YourContract'); // <-- add in constructor args like line 19 vvvv
+  // 0. get signer
+  const signer = (await ethers.getSigners())[0];
 
-  //const yourContract = await ethers.getContractAt('YourContract', "0xaAC799eC2d00C013f1F11c37E654e59B0429DF6A") //<-- if you want to instantiate a version of a contract at a specific address!
-  //const secondContract = await deploy("SecondContract")
-
-  // const exampleToken = await deploy("ExampleToken")
-  // const examplePriceOracle = await deploy("ExamplePriceOracle")
-  // const smartContractWallet = await deploy("SmartContractWallet",[exampleToken.address,examplePriceOracle.address])
-
-  /*
-   //If you want to send value to an address from the deployer
-   const deployerWallet = ethers.provider.getSigner()
-   await deployerWallet.sendTransaction({
-     to: "0x34aA3F359A9D614239015126635CE7732c18fDF3",
-     value: ethers.utils.parseEther("0.001")
-   })
-   */
-
-  /*
-   //If you want to send some ETH to a contract on deploy (make your constructor payable!)
-   const yourContract = await deploy("YourContract", [], {
-   value: ethers.utils.parseEther("0.05")
-   });
-   */
-
-  /*
-   //If you want to link a library into your contract:
-   // reference: https://github.com/austintgriffith/scaffold-eth/blob/using-libraries-example/packages/hardhat/scripts/deploy.js#L19
-   const yourContract = await deploy("YourContract", [], {}, {
-    LibraryName: **LibraryAddress**
-   });
-   */
-
-  //If you want to verify your contract on tenderly.co (see setup details in the scaffold-eth README!)
-  /*
-   await tenderlyVerify(
-     {contractName: "YourContract",
-      contractAddress: yourContract.address
-   })
-   */
-
-  // If you want to verify your contract on etherscan
-  /*
-   console.log(chalk.blue('verifying on etherscan'))
-   await run("verify:verify", {
-     address: yourContract.address,
-     // contract: "contracts/Example.sol:ExampleContract" // If you are inheriting from multiple contracts in yourContract.sol, you can specify which to verify
-     // constructorArguments: args // If your contract has constructor arguments, you can pass them as an array
-   })
-   */
-
-  console.log(' 💾  Artifacts (address, abi, and args) saved to: ', chalk.blue('packages/hardhat-ts/artifacts/'), '\n\n');
-};
-
-const deploy = async (contractName: string, _args: any[] = [], overrides: Record<string, any> = {}, libraries: Record<string, any> = {}) => {
-  console.log(` 🛰  Deploying: ${contractName}`);
-
-  const contractArgs = _args || [];
-  const contractArtifacts = await ethers.getContractFactory(contractName, { libraries: libraries });
-  const deployed = await contractArtifacts.deploy(...contractArgs, overrides);
-  const encoded = abiEncodeArgs(deployed, contractArgs);
-  fs.writeFileSync(`artifacts/${contractName}.address`, deployed.address);
-
-  let extraGasInfo = '';
-  if (deployed && deployed.deployTransaction) {
-    const gasUsed = deployed.deployTransaction.gasLimit.mul(deployed.deployTransaction.gasPrice);
-    extraGasInfo = `${utils.formatEther(gasUsed)} ETH, tx hash ${deployed.deployTransaction.hash}`;
+  // 1. mock xdai network id for crispr
+  signer.getChainId = () => {
+    return new Promise((resolve,) => {
+      resolve(100)
+    })
   }
+  log('signer: ', signer.address)
 
-  console.log(' 📄', chalk.cyan(contractName), 'deployed to:', chalk.magenta(deployed.address));
-  console.log(' ⛽', chalk.grey(extraGasInfo));
+  // 3. get get some agve
+  // const Agve = await ethers.getContractAt("IERC20", agve, signer);
+  // const tokensToSteal = await Agve.balanceOf(agentWhale);
+  // console.log('steal:  ', tokensToSteal.toString())
+  // await rugpull(agentWhale, agve);
+  // const signerAfter = await Agve.balanceOf(signer.address);
+  // console.log('stolen: ', signerAfter.toString())
 
-  await tenderly.persistArtifacts({
-    name: contractName,
-    address: deployed.address,
-  });
 
-  if (!encoded || encoded.length <= 2) return deployed;
-  fs.writeFileSync(`artifacts/${contractName}.args`, encoded.slice(2));
+  // 4. create vote
+  const evmcrispr = await EVMcrispr.create(signer, oldDAO, { ipfsGateway: 'https://ipfs.io/ipfs' })
+  
+  
+  const appCache: any= evmcrispr.appCache.entries()
 
-  return deployed;
-};
+ const v =  appCache.return('voting:0')
+  const tx = await evmcrispr.forward(
+    [evmcrispr.act('agent', hornetVesting, 'revoke()', [])],
+    ['hooked-token-manager.open', 'voting'],
+    { context: 'revoke hornet vesting' }
+  )
+  log("vote created?", tx.status === 1)
 
-// ------ utils -------
-
-// abi encodes contract arguments
-// useful when you want to manually verify the contracts
-// for example, on Etherscan
-const abiEncodeArgs = (deployed: any, contractArgs: ReadonlyArray<any>) => {
-  // not writing abi encoded args if this does not pass
-  if (!contractArgs || !deployed) {
-    return '';
-  }
-  const encoded = utils.defaultAbiCoder.encode(deployed.interface.deploy.inputs, contractArgs);
-  return encoded;
-};
-
-// checks if it is a Solidity file
-const isSolidity = (fileName: string) => fileName.indexOf('.sol') >= 0 && fileName.indexOf('.swp') < 0 && fileName.indexOf('.swap') < 0;
-
-const readArgsFile = (contractName: string) => {
-  let args: any[] = [];
-  try {
-    const argsFile = `./contracts/${contractName}.args`;
-    if (!fs.existsSync(argsFile)) return args;
-    args = JSON.parse(fs.readFileSync(argsFile) as any);
-  } catch (e) {
-    console.log(e);
-  }
-  return args;
-};
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// If you want to verify on https://tenderly.co/
-const tenderlyVerify = async (contractName: string, contractAddress: string) => {
-  let tenderlyNetworks = ['kovan', 'goerli', 'mainnet', 'rinkeby', 'ropsten', 'matic', 'mumbai', 'xDai', 'POA'];
-  let targetNetwork = process.env.HARDHAT_NETWORK || config.defaultNetwork;
-
-  if (tenderlyNetworks.includes(targetNetwork)) {
-    console.log(chalk.blue(` 📁 Attempting tenderly verification of ${contractName} on ${targetNetwork}`));
-
-    await tenderly.persistArtifacts({
-      name: contractName,
-      address: contractAddress,
-    });
-
-    let verification = await tenderly.verify({
-      name: contractName,
-      address: contractAddress,
-      network: targetNetwork,
-    });
-
-    return verification;
-  } else {
-    console.log(chalk.grey(` 🧐 Contract verification not supported on ${targetNetwork}`));
-  }
 };
 
 main()
